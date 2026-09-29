@@ -1,26 +1,86 @@
 @import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
 
+/* Tokens taken from the reference dashboard: light grey canvas, white cards,
+   hairline dividers, indigo primary, light-weight display numerals. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --canvas: #f7f7f8;
+  --surface: #ffffff;
+  --ink: #1f2330;
+  --ink-2: #4a4f5c;
+  --muted: #9a9ea8;
+  --line: #ececef;
+  --primary: #3d4fd6;
+  --primary-soft: #e8eefb;
+  --tooltip: #3b3b3b;
+
+  /* categorical series (pipeline / sources) */
+  --s1: #f26b5b; /* coral */
+  --s2: #ffc857; /* amber */
+  --s3: #3a3a5c; /* navy */
+  --s4: #8cc0a0; /* sage */
+  --s5: #8e3e91; /* plum */
+  --s6: #1f7a99; /* ocean */
+  /* the two tracking lines */
+  --teal: #1b6e7e;
+  --crimson: #b3182b;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-teal: var(--teal);
+  --color-crimson: var(--crimson);
+  --font-sans: var(--font-nunito), system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: var(--canvas);
+  color: var(--ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.display-num {
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tip {
+  position: relative;
+}
+.tip[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+  background: var(--tooltip);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 3px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.maplibregl-popup-content {
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: var(--font-sans);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
 }
