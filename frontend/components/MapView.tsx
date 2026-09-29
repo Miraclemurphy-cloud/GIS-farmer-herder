@@ -30,6 +30,7 @@ const STYLE: maplibregl.StyleSpecification = {
     { id: "osm", type: "raster", source: "osm", paint: { "raster-saturation": -0.7, "raster-opacity": 0.85 } },
   ],
 };
+maplibregl.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 const EMPTY: FC = { type: "FeatureCollection", features: [] };
 // Benue + Plateau extent
 const BOUNDS: [[number, number], [number, number]] = [[7.0, 6.4], [10.1, 10.4]];
