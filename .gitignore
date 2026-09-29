@@ -8,3 +8,4 @@ data/cache/
 models/*.joblib
 .pytest_cache/
 data/seeds/NGA-ADM*.geojson
+*.egg-info/
