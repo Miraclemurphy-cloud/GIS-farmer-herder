@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -24,7 +24,7 @@ class UserOut(BaseModel):
 class UserIn(BaseModel):
     email: str
     name: str = ""
-    password: str
+    password: str = Field(min_length=10)
     role: Role = Role.viewer
 
 
