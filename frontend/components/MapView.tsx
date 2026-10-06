@@ -44,10 +44,12 @@ function circlePolygon(lat: number, lon: number, km: number): FC {
   return { type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "Polygon", coordinates: [pts] }, properties: {} }] };
 }
 
-export function MapView({ layers, height = 520, onSelect, className }: {
+export function MapView({ layers, height = 520, onSelect, onMapClick, className }: {
   layers: Layers;
   height?: number | string;
   onSelect?: (kind: string, props: Record<string, unknown>, lngLat: { lat: number; lng: number }) => void;
+  /** Any click on the map (used for picking a location). */
+  onMapClick?: (lat: number, lng: number) => void;
   className?: string;
 }) {
   const el = useRef<HTMLDivElement>(null);
@@ -55,11 +57,14 @@ export function MapView({ layers, height = 520, onSelect, className }: {
   const [ready, setReady] = useState(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
 
   useEffect(() => {
     if (!el.current) return;
     const m = new maplibregl.Map({ container: el.current, style: STYLE, bounds: BOUNDS, fitBoundsOptions: { padding: 20 }, attributionControl: { compact: true } });
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    m.on("click", (e) => onMapClickRef.current?.(e.lngLat.lat, e.lngLat.lng));
     m.on("load", () => {
       for (const id of ["boundaries", "risk", "hotspots", "incidents", "fires", "subscribers", "circle"])
         m.addSource(id, { type: "geojson", data: EMPTY });
