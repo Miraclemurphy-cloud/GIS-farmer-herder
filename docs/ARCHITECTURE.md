@@ -47,7 +47,8 @@ Messages name an area and an action, never precise coordinates.
 
 ## Security and privacy
 
-- Role-based access on every endpoint; subscriber data is analyst-only; camera registration is admin-only.
+- Role-based access on every endpoint except `/api/public/summary`, which the landing page uses and which returns only
+  aggregate counts (no coordinates, risk cells or personal data). Subscriber data is analyst-only; camera registration is admin-only.
 - Subscriber phones encrypted at rest; erase removes contact details while keeping delivery counts (NDPA 2023).
 - Camera feeds must be HTTPS and carry a source/permission note; the system does not scan for or ingest unsecured cameras.
 - Every login, status change, upload, alert action and subscriber change is written to `audit_log`.

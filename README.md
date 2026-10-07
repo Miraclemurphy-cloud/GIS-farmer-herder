@@ -29,7 +29,7 @@ python -m venv .venv && .venv/Scripts/pip install -e ".[dev]"   # use .venv/bin 
 cd ../frontend && npm install && npm run dev # http://localhost:3000
 ```
 
-Sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env`.
+The public landing page is at `/`; staff sign in at `/login` with `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env` and land on `/dashboard`.
 
 ### Data sources and demo mode
 
