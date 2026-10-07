@@ -1,0 +1,113 @@
+/* Landing page design tokens — dark canvas, lime + cyan glow, condensed display type. */
+.landing {
+  --l-ink: #14151c;
+  --l-ink-2: #252630;
+  --l-ink-3: #1c1d26;
+  --l-lime: #d3fb52;
+  --l-cyan: #7af3ff;
+  --l-paper: #f4f4ef;
+  --l-white-60: rgb(255 255 255 / 0.6);
+  --l-white-20: rgb(255 255 255 / 0.2);
+  --l-white-10: rgb(255 255 255 / 0.1);
+  background: var(--l-ink);
+  color: #fff;
+  font-family: var(--font-grotesk), system-ui, sans-serif;
+  letter-spacing: -0.015em;
+}
+
+.landing .display {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  text-transform: uppercase;
+  line-height: 0.86;
+  letter-spacing: -0.01em;
+  font-weight: 400;
+}
+
+/* Soft aurora behind the hero and the closing call to action. */
+.landing .glow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.landing .glow::before,
+.landing .glow::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.55;
+}
+.landing .glow::before {
+  width: 62%;
+  height: 70%;
+  left: 18%;
+  top: 4%;
+  background: radial-gradient(circle at 45% 40%, var(--l-cyan) 0%, #3fae8f 45%, transparent 72%);
+}
+.landing .glow::after {
+  width: 55%;
+  height: 60%;
+  left: 30%;
+  top: 30%;
+  background: radial-gradient(circle at 50% 50%, var(--l-lime) 0%, #6f9e3a 45%, transparent 72%);
+  opacity: 0.45;
+}
+.landing .vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(100% 105% at 55% 30%, transparent 0%, var(--l-ink) 92%);
+}
+
+/* Scroll reveal: content is visible by default; only hidden once JS opts in. */
+.landing.reveal-on [data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.landing.reveal-on [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing.reveal-on [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .landing .caret {
+    animation: none !important;
+  }
+}
+
+.landing .caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  margin-left: 2px;
+  vertical-align: -0.2em;
+  background: var(--l-ink);
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.landing .marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 40s linear infinite;
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing .marquee {
+    animation: none;
+  }
+}
