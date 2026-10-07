@@ -2,6 +2,7 @@
 
   python -m app.cli bootstrap     # boundaries, grid, admin user, historical data, weather, hotspots, model
   python -m app.cli <step>        # boundaries | admin | acled | synthetic | weather | firms | hotspots | train | score | rules
+  python -m app.cli purge-demo    # delete synthetic incidents, demo subscribers and everything derived from them
 """
 import logging
 import sys
@@ -40,6 +41,9 @@ def history(db):
         from app.ingest import acled
         return {"acled": acled.ingest(db)}
     from app.ingest import synthetic
+    if s.sms_provider != "console":
+        raise RuntimeError("Refusing to generate demo data (including fake subscribers) while a real SMS provider "
+                           "is configured. Set ACLED_EMAIL/ACLED_PASSWORD, or use SMS_PROVIDER=console.")
     log.warning("ACLED credentials not set — generating SYNTHETIC demo data (flagged in the UI)")
     return {"synthetic": synthetic.generate(db), "demo_subscribers": synthetic.demo_subscribers(db)}
 
@@ -55,6 +59,7 @@ def step(name, db):
         "synthetic": synthetic.generate, "subscribers": synthetic.demo_subscribers,
         "weather": weather.ingest, "firms": firms.ingest, "hotspots": hotspots.recompute,
         "train": lambda d: model.train_and_activate(d).metrics["summary"], "score": model.score, "rules": run_rules,
+        "purge-demo": synthetic.purge,
     }[name](db)
 
 
