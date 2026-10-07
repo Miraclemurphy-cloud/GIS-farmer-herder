@@ -8,7 +8,7 @@ GIS and real-time monitoring for farmer–herder conflict in Benue and Plateau s
 - **Alert** subscribed community members by SMS (English, Hausa, Tiv). Rules only draft alerts; an analyst approves every send.
 - **Watch** operator-registered camera feeds, satellite fires and rainfall.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/MODEL_CARD.md](docs/MODEL_CARD.md).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/MODEL_CARD.md](docs/MODEL_CARD.md) and, for production, [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Quick start (local)
 
