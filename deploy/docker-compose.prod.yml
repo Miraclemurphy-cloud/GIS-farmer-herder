@@ -1,0 +1,79 @@
+# Production stack for one server. Run from the repository root:
+#   docker compose -f deploy/docker-compose.prod.yml --env-file .env up -d --build
+# See docs/DEPLOYMENT.md.
+name: gis-monitor
+
+x-backend: &backend
+  build:
+    context: ..
+    dockerfile: backend/Dockerfile
+  image: gis-monitor-backend:latest
+  env_file: ../.env
+  environment:
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gis}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-gis}
+    REDIS_URL: redis://redis:6379/0
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_started
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-gis}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gis}"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+    # No published port: only the api and worker containers can reach the database.
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]  # pub/sub only; nothing to persist
+    restart: unless-stopped
+
+  api:
+    <<: *backend
+    volumes:
+      - models:/srv/models
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "app.worker"]
+    healthcheck:
+      disable: true
+    volumes:
+      - models:/srv/models
+    # Keep exactly one worker: scheduled jobs would otherwise run twice.
+    deploy:
+      replicas: 1
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  models:
+  caddy_data:
+  caddy_config:

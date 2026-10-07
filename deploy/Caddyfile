@@ -1,0 +1,22 @@
+# Caddy obtains and renews the HTTPS certificate for API_DOMAIN automatically.
+{$API_DOMAIN} {
+	encode gzip
+
+	# The live dashboard stream is long-lived; send events immediately.
+	@stream path /api/stream
+	reverse_proxy @stream api:8000 {
+		flush_interval -1
+		transport http {
+			read_timeout 0
+		}
+	}
+
+	reverse_proxy api:8000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
