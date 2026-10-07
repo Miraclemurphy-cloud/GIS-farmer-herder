@@ -1,0 +1,43 @@
+# Render blueprint for a FREE DEMO of the backend. Not for operational use: the free tier has no
+# background worker (no scheduled jobs), sleeps after 15 minutes idle, and wipes the filesystem on restart.
+# Setup steps: docs/DEPLOYMENT.md → "Free demo on Render".
+services:
+  - type: web
+    name: gis-monitor-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      # Postgres with PostGIS from a provider whose free tier does not expire (e.g. Neon).
+      - key: DATABASE_URL
+        sync: false
+      # Must be the SAME values used when loading data from your laptop, or the API cannot
+      # validate sessions consistently, decrypt subscriber numbers, or recognise STOP replies.
+      - key: JWT_SECRET
+        sync: false
+      - key: PHONE_ENC_KEY
+        sync: false
+      # The dashboard's URL, e.g. https://your-dashboard.vercel.app
+      - key: CORS_ORIGINS
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: gis-monitor-kv
+          property: connectionString
+      - key: SMS_WEBHOOK_TOKEN
+        generateValue: true
+      - key: SMS_PROVIDER
+        value: console
+      # One process fits the small free instance.
+      - key: WEB_CONCURRENCY
+        value: "1"
+
+  - type: keyvalue
+    name: gis-monitor-kv
+    plan: free
+    region: frankfurt
+    ipAllowList: []  # internal connections only
