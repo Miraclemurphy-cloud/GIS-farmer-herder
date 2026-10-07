@@ -246,12 +246,92 @@ dc up -d
 | `train` is killed | The server ran out of memory. Use 4 GB+ RAM or add swap. |
 | Subscribers' STOP replies are ignored | `JWT_SECRET` was changed after they subscribed (see step 4). |
 
+## Free demo on Render
+
+For showing the system to partners or reviewers, the API can run at no cost on Render's free tier, using
+[`render.yaml`](../render.yaml). **This is a demo only.** On the free tier:
+- there is no background worker, so nothing updates on its own;
+- the API sleeps after 15 minutes without visitors and takes 1–2 minutes to wake;
+- the server's disk is wiped on every restart.
+
+Never connect a real SMS provider to it.
+
+How it fits together:
+- **Database:** a free Postgres from a provider whose free tier does not expire. These steps use
+  [Neon](https://neon.tech), which supports PostGIS.
+- **Data loading:** done once from your own computer, because free Render services cannot run one-off commands.
+- **Forecasts and hotspots:** stored in the database, so the API serves them without the model file.
+
+### 1. Create the database
+
+Create a free Neon project in a European region (e.g. Frankfurt), then copy its connection string. It looks like
+`postgresql://user:password@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require`. You do not need to
+change the `postgresql://` prefix. PostGIS is switched on automatically by the first migration.
+
+### 2. Create the shared secrets
+
+Generate these **once** and keep them in a password manager. Your computer and Render must use the same values;
+otherwise the demo subscribers cannot be decrypted or matched.
+
+```bash
+openssl rand -base64 48 | tr -d '\n'; echo      # JWT_SECRET
+openssl rand -base64 32 | tr '+/' '-_'           # PHONE_ENC_KEY
+```
+
+### 3. Load the demo data from your computer
+
+From the repository, in a terminal (Git Bash on Windows). Variables set this way override your local `.env` for
+these commands only, so your local development database is not touched.
+
+```bash
+cd backend
+export DATABASE_URL='<Neon connection string>'
+export JWT_SECRET='<from step 2>' PHONE_ENC_KEY='<from step 2>'
+export ADMIN_EMAIL='you@example.org' ADMIN_PASSWORD='<a strong password>'
+export SMS_PROVIDER=console ACLED_EMAIL= ACLED_PASSWORD=
+.venv/Scripts/alembic upgrade head          # use .venv/bin/... on macOS/Linux
+.venv/Scripts/python -m app.cli bootstrap   # about 10 minutes
+```
+
+This loads the boundaries, demo incidents and subscribers, and rainfall. It also computes hotspots, trains and scores
+the model, and drafts alerts. To show real events instead, set your ACLED credentials in place of the empty values.
+
+### 4. Deploy the API
+
+1. Push the repository to GitHub (already done for this project).
+2. In Render, choose **New → Blueprint** and select the repository. Render reads `render.yaml` and proposes a free
+   web service `gis-monitor-api` and a free Key Value instance.
+3. Fill in the values it asks for:
+   - `DATABASE_URL`: the Neon string from step 1;
+   - `JWT_SECRET` and `PHONE_ENC_KEY`: from step 2;
+   - `CORS_ORIGINS`: your dashboard's URL. Use a placeholder for now and update it after step 5.
+4. Click **Apply**. The first build takes 5–10 minutes. Then open
+   `https://<service-name>.onrender.com/api/health`, which should return `{"ok":true}`.
+
+### 5. Deploy the dashboard
+
+Import the same repository on [Vercel](https://vercel.com) (free). Set **Root Directory** to `frontend` and add the
+environment variable `NEXT_PUBLIC_API_URL=https://<service-name>.onrender.com`. Once Vercel gives you a URL, set it as
+`CORS_ORIGINS` on the Render service. Render redeploys automatically. Sign in with the admin account from step 3.
+
+### Keeping the demo fresh
+
+Nothing runs on a schedule, so forecasts and hotspots stay as they were when you loaded them. Before a
+presentation, repeat the `export` lines from step 3 and run:
+
+```bash
+.venv/Scripts/python -m app.cli hotspots score rules
+```
+
+Open the API URL a couple of minutes before you present, so it has woken up. The first request after a quiet
+period is slow.
+
 ## Managed platforms (alternative)
 
 The same image runs on platforms such as Render, Railway, Fly.io or a cloud container service. You need:
 
-- **PostgreSQL with the PostGIS extension enabled.** Most managed Postgres offerings support it; run
-  `CREATE EXTENSION postgis;` once.
+- **PostgreSQL with the PostGIS extension enabled.** Most managed Postgres offerings support it, and the first
+  migration enables it.
 - **Redis**, for the live stream.
 - **Two services from the same image:**
   - a web service with the default command;
@@ -259,4 +339,4 @@ The same image runs on platforms such as Render, Railway, Fly.io or a cloud cont
     `/srv/models`.
 - **A release command** of `alembic upgrade head`. Then run the step 6 data load once as a one-off job.
 - **Environment variables** from step 4, with `DATABASE_URL` and `REDIS_URL` set to the managed services'
-  addresses. Use the `postgresql+psycopg://` scheme.
+  addresses. Plain `postgres://` or `postgresql://` URLs are accepted as given.
