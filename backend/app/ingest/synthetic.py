@@ -12,17 +12,22 @@ from datetime import datetime, timedelta, timezone
 
 from geoalchemy2.shape import to_shape
 from shapely.geometry import Point
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from app.core.geo import cell_of
 from app.models import (
     AdminArea,
+    AlertDelivery,
     FeedEvent,
+    Hotspot,
+    InboundSms,
     Incident,
     IncidentSource,
     IncidentStatus,
     IncidentStatusEvent,
+    ModelRun,
+    RiskScore,
     Subscriber,
 )
 from app.services.incidents import Located, create_incident
@@ -166,6 +171,9 @@ def _fire(db, rng, p: Point, when: datetime, key: str) -> None:
                      dedupe_key=f"synthetic:{key}"))
 
 
+DEMO_PHONE = "+234800000{:04d}"  # reserved test range used only for demo subscribers
+
+
 def demo_subscribers(db: Session, n: int = 120, seed: int = 11) -> int:
     """Fake subscribers with reserved test numbers (+234 800 000 xxxx) for alert demos."""
     from app.core.security import encrypt_phone, phone_hash
@@ -178,9 +186,35 @@ def demo_subscribers(db: Session, n: int = 120, seed: int = 11) -> int:
     for i in range(n):
         a, poly = rng.choice(lgas)
         p = _point_in(rng, poly)
-        phone = f"+234800000{i:04d}"
+        phone = DEMO_PHONE.format(i)
         db.add(Subscriber(phone_enc=encrypt_phone(phone), phone_hash=phone_hash(phone), phone_last4=phone[-4:],
                           name=f"Demo subscriber {i + 1}", language=rng.choice(["en", "en", "ha", "tiv"]),
                           community=f"{a.name} community", state=a.state, lga_id=a.id, lat=p.y, lon=p.x))
     db.commit()
     return n
+
+
+def purge(db: Session) -> dict:
+    """Remove every demo record plus everything derived from it (hotspots, risk scores, model runs).
+
+    Run before going live; afterwards import real history and re-run hotspots, train and score.
+    """
+    from app.core.security import phone_hash
+
+    synthetic_ids = select(Incident.id).where(Incident.synthetic.is_(True))
+    db.execute(update(InboundSms).where(InboundSms.incident_id.in_(synthetic_ids)).values(incident_id=None))
+    db.execute(delete(IncidentStatusEvent).where(IncidentStatusEvent.incident_id.in_(synthetic_ids)))
+    incidents = db.execute(delete(Incident).where(Incident.synthetic.is_(True))).rowcount
+    fires = db.execute(delete(FeedEvent).where(FeedEvent.dedupe_key.like("synthetic:%"))).rowcount
+
+    demo_hashes = [phone_hash(DEMO_PHONE.format(i)) for i in range(10_000)]
+    demo_ids = select(Subscriber.id).where(Subscriber.phone_hash.in_(demo_hashes))
+    db.execute(delete(AlertDelivery).where(AlertDelivery.subscriber_id.in_(demo_ids)))
+    subscribers = db.execute(delete(Subscriber).where(Subscriber.phone_hash.in_(demo_hashes))).rowcount
+
+    db.execute(delete(Hotspot))
+    db.execute(delete(RiskScore))
+    db.execute(update(ModelRun).values(active=False))
+    db.commit()
+    return {"incidents": incidents, "fire_events": fires, "subscribers": subscribers,
+            "derived": "hotspots, risk scores cleared; model runs deactivated"}
