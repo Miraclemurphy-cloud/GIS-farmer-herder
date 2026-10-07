@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -36,6 +37,15 @@ class Settings(BaseSettings):
 
     data_dir: Path = ROOT / "data"
     models_dir: Path = ROOT / "models"
+
+    @field_validator("database_url")
+    @classmethod
+    def _psycopg_driver(cls, v: str) -> str:
+        """Hosted providers hand out postgres:// or postgresql:// URLs; SQLAlchemy needs the psycopg (v3) driver name."""
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg://" + v[len(prefix):]
+        return v
 
 
 @lru_cache
