@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+.claude
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/*.egg-info
+backend/.venv
+backend/tests
+frontend
+models
+data/cache
+data/seeds/NGA-ADM*.geojson
+docs
