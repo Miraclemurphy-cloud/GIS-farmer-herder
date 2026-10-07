@@ -9,7 +9,7 @@ import {
 import { useAuth } from "@/lib/auth";
 
 const GROUPS = [
-  [{ href: "/", label: "Dashboard", icon: LayoutGrid }],
+  [{ href: "/dashboard", label: "Dashboard", icon: LayoutGrid }],
   [
     { href: "/incidents", label: "Incidents", icon: ShieldAlert },
     { href: "/map", label: "Map", icon: Map },
@@ -29,7 +29,7 @@ const GROUPS = [
 export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const path = usePathname();
   const { user, logout } = useAuth();
-  const active = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+  const active = (href: string) => path.startsWith(href);
   const item = (on: boolean) =>
     clsx(
       "flex items-center gap-3 rounded-md px-4 py-2.5 text-[15px]",

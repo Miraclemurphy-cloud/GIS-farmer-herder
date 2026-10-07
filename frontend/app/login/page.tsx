@@ -22,7 +22,7 @@ export default function LoginPage() {
         body: new URLSearchParams({ username: email, password }),
       });
       setToken(res.access_token);
-      router.replace("/");
+      router.replace("/dashboard");
     } catch (err) {
       setError((err as Error).message);
     } finally {
