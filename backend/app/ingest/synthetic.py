@@ -150,7 +150,7 @@ def _make_incident(db, rng, area, poly, villages, when: datetime, now: datetime)
         events.append((s, t))
     status = events[-1][0] if events else IncidentStatus.reported
     inc = create_incident(
-        db, lat=p.y, lon=p.x, occurred_at=when, status=status, reported_at=reported_at, emit=False,
+        db, lat=p.y, lon=p.x, occurred_at=when, status=status, reported_at=reported_at, emit=False, flush=False,
         located=Located(area.state, area.id, area.name),
         type=typ, cause=cause, fatalities=fat, injured=int(fat * rng.uniform(0.3, 1.5)),
         displaced=int(rng.expovariate(1 / 150)) if deadly else 0,

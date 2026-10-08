@@ -47,7 +47,8 @@ def find_duplicate(db: Session, lat: float, lon: float, occurred_at: datetime) -
 
 def create_incident(db: Session, *, lat: float, lon: float, occurred_at: datetime, user: User | None = None,
                     status: str = IncidentStatus.reported, located: Located | None = None,
-                    reported_at: datetime | None = None, emit: bool = True, **fields) -> Incident:
+                    reported_at: datetime | None = None, emit: bool = True, flush: bool = True,
+                    **fields) -> Incident:
     if occurred_at.tzinfo is None:
         occurred_at = occurred_at.replace(tzinfo=timezone.utc)
     loc = located or locate(db, lat, lon)
@@ -61,7 +62,8 @@ def create_incident(db: Session, *, lat: float, lon: float, occurred_at: datetim
     inc.status_events.append(IncidentStatusEvent(status=IncidentStatus.reported, at=reported_at or datetime.now(timezone.utc),
                                                  by_user=user.id if user else None))
     db.add(inc)
-    db.flush()
+    if flush or emit:  # bulk loaders pass flush=False so rows are written in batches at commit
+        db.flush()
     if emit:
         publish("incident", incident_summary(inc))
     return inc
