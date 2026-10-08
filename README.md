@@ -60,6 +60,19 @@ cd backend && .venv/Scripts/python -m pytest
 Covers upload parsing and validation, Gi\*/HDBSCAN hotspot detection, a time-leakage guard on model features, and the alert
 state machine (no send without approval).
 
+## Demo and end-to-end tests
+
+`python -m app.cli demo` prepares a demo database: synthetic history, one login per role (passwords written to the
+git-ignored `demo-credentials.txt`) and a staged incident story. Re-stage the story with `python -m app.cli demo-scenario`.
+The browser tests in `e2e/` (Playwright) run against any deployment:
+
+```bash
+cd e2e && npm install && npx playwright install chromium
+WEB_URL=http://localhost:3000 API_URL=http://127.0.0.1:8000 npx playwright test
+```
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) → "Free demo on Render" for the hosted demo.
+
 ## Repository layout
 
 ```

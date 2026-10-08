@@ -257,44 +257,55 @@ For showing the system to partners or reviewers, the API can run at no cost on R
 Never connect a real SMS provider to it.
 
 How it fits together:
-- **Database:** a free Postgres from a provider whose free tier does not expire. These steps use
-  [Neon](https://neon.tech), which supports PostGIS.
+- **Database:** a free Postgres with PostGIS from a provider whose free tier does not expire: Supabase or Neon.
 - **Data loading:** done once from your own computer, because free Render services cannot run one-off commands.
 - **Forecasts and hotspots:** stored in the database, so the API serves them without the model file.
 
 ### 1. Create the database
 
-Create a free Neon project in a European region (e.g. Frankfurt), then copy its connection string. It looks like
-`postgresql://user:password@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require`. You do not need to
-change the `postgresql://` prefix. PostGIS is switched on automatically by the first migration.
+**Supabase:** create a free project in **Central EU (Frankfurt)**, the same region as the Render service. Then open
+**Connect** and copy the **Session pooler** connection string. It looks like
+`postgresql://postgres.<project-ref>:<password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`.
+- Do **not** use the "Direct connection" string. On the free plan it is IPv6-only, and Render cannot reach IPv6
+  addresses.
+- Do **not** use the "Transaction pooler" (port 6543) either; it is not compatible with the database driver's
+  prepared statements.
+- Supabase pauses free projects after a week without activity; open its dashboard to resume one before a demo.
 
-### 2. Create the shared secrets
+**Neon (alternative):** create a project in a European region and copy its connection string.
 
-Generate these **once** and keep them in a password manager. Your computer and Render must use the same values;
-otherwise the demo subscribers cannot be decrypted or matched.
+You do not need to change the `postgresql://` prefix. PostGIS is switched on automatically by the first migration.
+
+### 2. Fill in `.env.demo`
 
 ```bash
-openssl rand -base64 48 | tr -d '\n'; echo      # JWT_SECRET
-openssl rand -base64 32 | tr '+/' '-_'           # PHONE_ENC_KEY
+cp .env.demo.example .env.demo
 ```
+
+Fill in `.env.demo` at the repository root:
+- the connection string from step 1;
+- two secrets generated with the commands inside the file;
+- an admin email and password.
+
+The file is git-ignored. Keep a copy in a password manager: Render needs the **same** `JWT_SECRET` and `PHONE_ENC_KEY`,
+or it cannot read the demo subscribers' numbers.
 
 ### 3. Load the demo data from your computer
 
-From the repository, in a terminal (Git Bash on Windows). Variables set this way override your local `.env` for
-these commands only, so your local development database is not touched.
+From the repository, in a terminal (Git Bash on Windows):
 
 ```bash
 cd backend
-export DATABASE_URL='<Neon connection string>'
-export JWT_SECRET='<from step 2>' PHONE_ENC_KEY='<from step 2>'
-export ADMIN_EMAIL='you@example.org' ADMIN_PASSWORD='<a strong password>'
-export SMS_PROVIDER=console ACLED_EMAIL= ACLED_PASSWORD=
+set -a; . ../.env.demo; set +a              # applies .env.demo to this terminal only
 .venv/Scripts/alembic upgrade head          # use .venv/bin/... on macOS/Linux
-.venv/Scripts/python -m app.cli bootstrap   # about 10 minutes
+.venv/Scripts/python -m app.cli demo        # about 10 minutes
 ```
 
-This loads the boundaries, demo incidents and subscribers, and rainfall. It also computes hotspots, trains and scores
-the model, and drafts alerts. To show real events instead, set your ACLED credentials in place of the empty values.
+`demo` does the following:
+- loads the boundaries, synthetic history, 120 demo subscribers (reserved test numbers) and rainfall;
+- trains the model;
+- creates one login per role and writes their passwords to `demo-credentials.txt` (git-ignored);
+- stages the demo story described below.
 
 ### 4. Deploy the API
 
@@ -302,8 +313,8 @@ the model, and drafts alerts. To show real events instead, set your ACLED creden
 2. In Render, choose **New → Blueprint** and select the repository. Render reads `render.yaml` and proposes a free
    web service `gis-monitor-api` and a free Key Value instance.
 3. Fill in the values it asks for:
-   - `DATABASE_URL`: the Neon string from step 1;
-   - `JWT_SECRET` and `PHONE_ENC_KEY`: from step 2;
+   - `DATABASE_URL`: the connection string from step 1;
+   - `JWT_SECRET` and `PHONE_ENC_KEY`: the same values as in `.env.demo`;
    - `CORS_ORIGINS`: your dashboard's URL. Use a placeholder for now and update it after step 5.
 4. Click **Apply**. The first build takes 5–10 minutes. Then open
    `https://<service-name>.onrender.com/api/health`, which should return `{"ok":true}`.
@@ -312,19 +323,53 @@ the model, and drafts alerts. To show real events instead, set your ACLED creden
 
 Import the same repository on [Vercel](https://vercel.com) (free). Set **Root Directory** to `frontend` and add the
 environment variable `NEXT_PUBLIC_API_URL=https://<service-name>.onrender.com`. Once Vercel gives you a URL, set it as
-`CORS_ORIGINS` on the Render service. Render redeploys automatically. Sign in with the admin account from step 3.
+`CORS_ORIGINS` on the Render service. Render redeploys automatically. Sign in with any login from
+`demo-credentials.txt`.
 
-### Keeping the demo fresh
+### The demo story
 
-Nothing runs on a schedule, so forecasts and hotspots stay as they were when you loaded them. Before a
-presentation, repeat the `export` lines from step 3 and run:
+`python -m app.cli demo-scenario` stages events relative to the current time, so the demo always looks current:
+- **Guma (Benue):**
+  - an attack verified yesterday (4 killed, 300 displaced);
+  - a satellite fire detected near it;
+  - a community SMS report from 95 minutes ago, still waiting for verification.
+- **Bokkos (Plateau):** cattle rustling three days ago, with a patrol already deployed.
+
+It then refreshes hotspots and forecasts, and drafts alerts for an analyst to approve. A suggested walkthrough:
+1. **Landing page:** show the live stats and the dashboard preview.
+2. **Dashboard:** sign in as the analyst and show the pipeline, the sources and the live map.
+3. **Incidents:** open the Guma SMS report, add a note and mark it verified.
+4. **Alerts:** review the Guma alert in English and Hausa, check the target area, then approve and send it. On the
+   demo, messages are only logged.
+5. **Predictions:** show the forecast and how it compares with the baseline.
+6. **Uploads:** as the field agent, upload a CSV and show the row checks.
+7. **Permissions:** sign in as the viewer to show what is hidden.
+
+Re-run it before each presentation; it also clears earlier alerts:
 
 ```bash
-.venv/Scripts/python -m app.cli hotspots score rules
+cd backend && set -a; . ../.env.demo; set +a
+.venv/Scripts/python -m app.cli demo-scenario
 ```
 
 Open the API URL a couple of minutes before you present, so it has woken up. The first request after a quiet
 period is slow.
+
+### 6. Run the end-to-end tests against the live demo
+
+The suite in `e2e/` signs in as each role and checks:
+- the public site and every page;
+- the demo story (verify, approve, send);
+- uploads, role permissions and the SMS webhook.
+
+```bash
+cd backend && set -a; . ../.env.demo; set +a && .venv/Scripts/python -m app.cli demo-scenario && cd ..
+cd e2e && npm install && npx playwright install chromium
+WEB_URL=https://<your-app>.vercel.app API_URL=https://<service-name>.onrender.com SMS_WEBHOOK_TOKEN=<value shown in Render> npx playwright test
+```
+
+The first run includes waking the free services (up to 4 minutes). The tests change the demo data, so re-stage the
+scenario before presenting. Results open with `npx playwright show-report`.
 
 ## Managed platforms (alternative)
 
