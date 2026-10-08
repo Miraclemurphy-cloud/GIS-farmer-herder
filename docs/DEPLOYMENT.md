@@ -263,9 +263,9 @@ How it fits together:
 
 ### 1. Create the database
 
-**Supabase:** create a free project in **Central EU (Frankfurt)**, the same region as the Render service. Then open
+**Supabase:** create a free project in a European region (Frankfurt or Ireland, near the Render service). Then open
 **Connect** and copy the **Session pooler** connection string. It looks like
-`postgresql://postgres.<project-ref>:<password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`.
+`postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`.
 - Do **not** use the "Direct connection" string. On the free plan it is IPv6-only, and Render cannot reach IPv6
   addresses.
 - Do **not** use the "Transaction pooler" (port 6543) either; it is not compatible with the database driver's
