@@ -46,15 +46,16 @@ def ingest(db: Session, start: date = date(2018, 1, 1), end: date | None = None)
                     day = date.fromisoformat(d)
                     wk = day - timedelta(days=day.weekday())
                     weekly[wk] = weekly.get(wk, 0.0) + (mm or 0.0)
-                for wk, mm in weekly.items():
-                    stmt = insert(FeedEvent).values(
-                        kind="weather", observed_at=datetime.combine(wk, datetime.min.time(), timezone.utc),
-                        lat=lat, lon=lon, h3_cell=cell_of(lat, lon), value=round(mm, 1),
-                        data={"lga_id": area.id, "lga": area.name, "metric": "precip_week_mm"},
-                        dedupe_key=f"weather:{area.id}:{wk.isoformat()}",
-                    ).on_conflict_do_update(index_elements=["dedupe_key"], set_={"value": round(mm, 1)})
-                    db.execute(stmt)
-                    n += 1
+                rows = [{
+                    "kind": "weather", "observed_at": datetime.combine(wk, datetime.min.time(), timezone.utc),
+                    "lat": lat, "lon": lon, "h3_cell": cell_of(lat, lon), "value": round(mm, 1),
+                    "data": {"lga_id": area.id, "lga": area.name, "metric": "precip_week_mm"},
+                    "dedupe_key": f"weather:{area.id}:{wk.isoformat()}",
+                } for wk, mm in weekly.items()]
+                # One statement per LGA: hosted databases add ~100+ ms per round trip.
+                stmt = insert(FeedEvent).values(rows)
+                db.execute(stmt.on_conflict_do_update(index_elements=["dedupe_key"], set_={"value": stmt.excluded.value}))
+                n += len(rows)
             db.commit()
     log.info("weather: %d LGA-weeks upserted", n)
     return n
