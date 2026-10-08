@@ -3,6 +3,8 @@
   python -m app.cli bootstrap     # boundaries, grid, admin user, historical data, weather, hotspots, model
   python -m app.cli <step>        # boundaries | admin | acled | synthetic | weather | firms | hotspots | train | score | rules
   python -m app.cli purge-demo    # delete synthetic incidents, demo subscribers and everything derived from them
+  python -m app.cli demo          # full demo database: bootstrap + one login per role + staged scenario
+  python -m app.cli demo-scenario # re-stage the scenario (resets alerts) before each presentation
 """
 import logging
 import sys
@@ -49,6 +51,7 @@ def history(db):
 
 
 def step(name, db):
+    from app import demo
     from app.alerts.service import run_rules
     from app.ingest import acled, firms, synthetic, weather
     from app.ml import model
@@ -59,16 +62,17 @@ def step(name, db):
         "synthetic": synthetic.generate, "subscribers": synthetic.demo_subscribers,
         "weather": weather.ingest, "firms": firms.ingest, "hotspots": hotspots.recompute,
         "train": lambda d: model.train_and_activate(d).metrics["summary"], "score": model.score, "rules": run_rules,
-        "purge-demo": synthetic.purge,
+        "purge-demo": synthetic.purge, "demo-users": demo.demo_users, "demo-scenario": demo.stage_scenario,
     }[name](db)
 
 
 BOOTSTRAP = ["boundaries", "admin", "history", "weather", "hotspots", "train", "score", "rules"]
+DEMO = ["boundaries", "admin", "history", "weather", "train", "demo-users", "demo-scenario"]
 
 
 def main(argv):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    steps = BOOTSTRAP if argv[:1] == ["bootstrap"] else argv
+    steps = {"bootstrap": BOOTSTRAP, "demo": DEMO}.get(argv[0], argv) if argv else BOOTSTRAP
     for name in steps:
         with SessionLocal() as db:
             try:
